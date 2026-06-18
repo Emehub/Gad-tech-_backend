@@ -13,11 +13,25 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
   intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
     return next.handle().pipe(
       map((data) => {
-        if (data && typeof data === 'object' && 'data' in data) {
-          return { success: true, ...data };
+        const serialized = this.serialize(data);
+        if (serialized && typeof serialized === 'object' && 'data' in serialized) {
+          return { success: true, ...serialized };
         }
-        return { success: true, data };
+        return { success: true, data: serialized };
       }),
     );
+  }
+
+  private serialize(value: any): any {
+    if (value === null || value === undefined) return value;
+    if (Array.isArray(value)) return value.map((v) => this.serialize(v));
+    if (typeof value === 'object') {
+      // Prisma Decimal — has s/e/d and a toNumber() method
+      if (typeof value.toNumber === 'function') return value.toNumber();
+      const out: any = {};
+      for (const key of Object.keys(value)) out[key] = this.serialize(value[key]);
+      return out;
+    }
+    return value;
   }
 }
