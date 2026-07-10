@@ -26,12 +26,20 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (existing) throw new ConflictException('An account with this email already exists');
 
+    const phone = dto.phone?.trim() || null;
+
+    if (phone) {
+      const phoneExists = await this.prisma.user.findUnique({ where: { phone } });
+      if (phoneExists) throw new ConflictException('An account with this phone number already exists');
+    }
+
     const hashed = await bcrypt.hash(dto.password, 12);
     const verifyToken = uuidv4();
 
     const user = await this.prisma.user.create({
       data: {
         ...dto,
+        phone,
         email: dto.email.toLowerCase(),
         password: hashed,
         emailVerifyToken: verifyToken,
