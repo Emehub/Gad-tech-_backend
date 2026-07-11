@@ -13,16 +13,30 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: false, rawBody: true });
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
-  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
 
   // Security & compression
   app.use(helmet());
   app.use(compression());
   app.use(cookieParser());
 
+  const allowedOrigins = [
+    frontendUrl,
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5173',
+  ].filter(Boolean);
+
   // CORS
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(origin) ||
+        /\.railway\.app$/.test(origin);
+      callback(null, isAllowed);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Id'],
